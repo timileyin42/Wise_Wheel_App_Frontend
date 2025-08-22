@@ -1,12 +1,31 @@
 import { Card, CardMedia, CardContent, Typography, Button, Chip, Box } from '@mui/material';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import BookingModal from '../booking/BookingModal';
 
 export default function CarCard({ car }) {
   const navigate = useNavigate();
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+
+  const handleBookNow = (e) => {
+    e.stopPropagation(); // Prevent card click navigation
+    navigate(`/cars/${car.id}/book`);
+  };
+
+  const handleQuickBook = (e) => {
+    e.stopPropagation(); // Prevent card click navigation
+    setBookingModalOpen(true);
+  };
+
+  const handleViewDetails = (e) => {
+    e.stopPropagation(); // Prevent card click navigation
+    navigate(`/cars/${car.id}`);
+  };
 
   return (
     <motion.div whileHover={{ y: -5 }}>
@@ -59,16 +78,37 @@ export default function CarCard({ car }) {
             sx={{ mb: 2 }}
           />
         </CardContent>
-        <Button 
-          variant="contained" 
-          fullWidth
-          onClick={() => navigate(`/cars/${car.id}`)}
-          startIcon={<CalendarTodayIcon />}
-          disabled={!car.is_available}
-        >
-          {car.is_available ? 'Book Now' : 'Unavailable'}
-        </Button>
+        
+        {/* Action Buttons */}
+        <Box sx={{ p: 2, pt: 0, display: 'flex', gap: 1 }}>
+          <Button 
+            variant="outlined"
+            size="small"
+            onClick={handleViewDetails}
+            startIcon={<VisibilityIcon />}
+            sx={{ flex: 1 }}
+          >
+            Details
+          </Button>
+          <Button 
+            variant="contained" 
+            size="small"
+            onClick={handleBookNow}
+            startIcon={<CalendarTodayIcon />}
+            disabled={!car.is_available}
+            sx={{ flex: 1 }}
+          >
+            {car.is_available ? 'Book Now' : 'Unavailable'}
+          </Button>
+        </Box>
       </Card>
+
+      {/* Booking Modal */}
+      <BookingModal
+        open={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        car={car}
+      />
     </motion.div>
   );
 }

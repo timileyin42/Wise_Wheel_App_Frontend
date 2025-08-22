@@ -33,11 +33,16 @@ export const clearAuth = () => {
  */
 export const login = async (email, password) => {
   try {
+    console.log('🔐 Attempting login for:', email);
+    console.log('🌐 API Base URL:', import.meta.env.VITE_API_URL);
+    
     // OAuth2 compliant form-urlencoded request
     const params = new URLSearchParams();
     params.append('username', email);
     params.append('password', password);
     params.append('grant_type', 'password');
+
+    console.log('📤 Sending request to /token with params:', params.toString());
 
     const authResponse = await api.post('/token', params, {
       headers: {
@@ -45,13 +50,18 @@ export const login = async (email, password) => {
       }
     });
 
+    console.log('✅ Auth response received:', authResponse.status);
+
     const token = authResponse.data.access_token;
     storeToken(token); // Persist token immediately
 
     // Fetch user profile with the new token
+    console.log('👤 Fetching user profile...');
     const userResponse = await api.get('/users/me', {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    console.log('✅ Login successful for user:', userResponse.data.email);
 
     return {
       success: true,
@@ -60,7 +70,13 @@ export const login = async (email, password) => {
     };
   } catch (error) {
     clearAuth(); // Clear any invalid token on failure
-    console.error('Login error:', error.response?.data);
+    console.error('❌ Login error details:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      url: error.config?.url
+    });
     return {
       success: false,
       error: error.response?.data?.detail || 
@@ -78,20 +94,31 @@ export const getCurrentUser = async (token) => {
   const authToken = token || getStoredToken();
   
   if (!authToken) {
+    console.log('❌ No token available for getCurrentUser');
     return { success: false, error: 'No authentication token available' };
   }
 
   try {
+    console.log('🔍 getCurrentUser: Making API call to /users/me');
+    console.log('🎫 Using token:', authToken.substring(0, 20) + '...');
+    
     const response = await api.get('/users/me', {
       headers: { Authorization: `Bearer ${authToken}` }
     });
+    
+    console.log('✅ getCurrentUser: API call successful');
+    console.log('📊 Response data:', response.data);
+    
     return {
       success: true,
       user: response.data
     };
   } catch (error) {
+    console.error('❌ getCurrentUser error:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    
     clearAuth(); // Clear invalid token
-    console.error('User fetch error:', error.response?.data);
     return {
       success: false,
       error: error.response?.data?.detail || 
@@ -107,7 +134,7 @@ export const getCurrentUser = async (token) => {
  */
 export const register = async (userData) => {
   try {
-    await api.post('/auth/register', userData);
+    await api.post('/register', userData);
     return { success: true };
   } catch (error) {
     console.error('Registration error:', error.response?.data);

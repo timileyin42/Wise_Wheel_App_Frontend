@@ -34,13 +34,26 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = async (email, password) => {
-    const { success, token: newToken, user, error } = await authLogin(email, password);
-    if (success) {
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setUser(user);
+    try {
+      console.log('🔐 AuthContext: Calling auth service login...');
+      const { success, token: newToken, user, error } = await authLogin(email, password);
+      
+      console.log('🔐 AuthContext: Auth service result:', { success, error });
+      
+      if (success) {
+        localStorage.setItem('token', newToken);
+        setToken(newToken);
+        setUser(user);
+        console.log('🔐 AuthContext: Login successful, user set');
+      }
+      return { success, error };
+    } catch (error) {
+      console.error('🔐 AuthContext: Unexpected error in login:', error);
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred during login'
+      };
     }
-    return { success, error };
   };
 
   const logout = () => {
@@ -51,6 +64,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    setUser,
     token,
     loading,
     login,

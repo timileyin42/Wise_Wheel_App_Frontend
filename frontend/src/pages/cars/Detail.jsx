@@ -24,7 +24,7 @@ import {
   DialogActions,
   Alert
 } from '@mui/material';
-import { getCarById, getCarAvailability } from '../../services/car';
+import { getCarById, getCarAvailability, getCars } from '../../services/car';
 import { createBooking, getMyBookings, checkCarAvailable } from '../../services/bookings';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ImageGallery from 'react-image-gallery';
@@ -84,22 +84,59 @@ export default function CarDetail() {
   const [error, setError] = useState(null);
   const [isAvailable, setIsAvailable] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [carNotFound, setCarNotFound] = useState(false);
+  const [suggestedCars, setSuggestedCars] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [carData, bookingsData, availabilityData] = await Promise.all([
+        setError(null);
+        setCarNotFound(false);
+        console.log('🔍 Fetching car details for ID:', id);
+        
+        // Fetch car data and availability (required)
+        const [carData, availabilityData] = await Promise.all([
           getCarById(id),
-          getMyBookings(),
           getCarAvailability(id)
         ]);
         
+        console.log('✅ Car data fetched:', carData);
         setCar(carData);
-        setUserBookings(bookingsData.filter(b => b.car_id === id));
         setAvailability(availabilityData);
+        
+        // Fetch user bookings (optional - don't fail if this fails)
+        try {
+          const bookingsData = await getMyBookings();
+          setUserBookings(bookingsData.filter(b => b.car_id === id));
+          console.log('✅ User bookings fetched successfully');
+        } catch (bookingsError) {
+          console.warn('⚠️ Failed to fetch user bookings (non-critical):', bookingsError);
+          setUserBookings([]); // Set empty array as fallback
+        }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error('❌ Failed to fetch car data:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        if (error.response?.status === 404) {
+          console.error('❌ Car not found in database');
+          setCarNotFound(true);
+          setError('Car not found. This car may have been removed or is no longer available.');
+          
+          // Fetch suggested cars
+          try {
+            const carsData = await getCars({ limit: 6 });
+            setSuggestedCars(carsData.cars || carsData || []);
+          } catch (suggestedError) {
+            console.error('❌ Failed to fetch suggested cars:', suggestedError);
+          }
+        } else {
+          setError('Failed to load car details. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -206,8 +243,75 @@ export default function CarDetail() {
         <ArrowBackIcon />
       </IconButton>
 
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={7}>
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+          {carNotFound && (
+            <Box sx={{ mt: 2 }}>
+              <Button 
+                variant="outlined" 
+                onClick={() => navigate('/cars')}
+                sx={{ mr: 2 }}
+              >
+                Browse All Cars
+              </Button>
+              <Button 
+                variant="text" 
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </Button>
+            </Box>
+          )}
+        </Alert>
+      )}
+
+      {carNotFound && suggestedCars.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Available Cars You Might Like
+          </Typography>
+          <Grid container spacing={2}>
+            {suggestedCars.slice(0, 3).map((suggestedCar) => (
+              <Grid item xs={12} sm={6} md={4} key={suggestedCar.id}>
+                <Paper 
+                  sx={{ 
+                    p: 2, 
+                    cursor: 'pointer',
+                    '&:hover': { elevation: 4 }
+                  }}
+                  onClick={() => navigate(`/cars/${suggestedCar.id}`)}
+                >
+                  <Box sx={{ 
+                    height: 120, 
+                    backgroundImage: `url(${suggestedCar.images?.[0] || '/photo.png'})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    borderRadius: 1,
+                    mb: 1
+                  }} />
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    {suggestedCar.make} {suggestedCar.model}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ${suggestedCar.daily_rate}/day
+                  </Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+
+      {!loading && !error && car && (
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={7}>
           {images.length > 0 ? (
             <ImageGallery
               items={images}
@@ -395,6 +499,7 @@ export default function CarDetail() {
           </Box>
         </Grid>
       </Grid>
+      )}
 
       {/* Booking Modal */}
       <Dialog open={bookingModalOpen} onClose={() => setBookingModalOpen(false)} maxWidth="sm" fullWidth>

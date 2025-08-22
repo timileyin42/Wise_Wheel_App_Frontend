@@ -1,7 +1,16 @@
 .leaflet-container {
   z-index: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  display: block !important;
 }
 
 .leaflet-control-attribution {
   font-size: 10px !important;
+}
+
+/* Ensure the map fills its container properly */
+.leaflet-map-pane {
+  height: 100% !important;
+  width: 100% !important;
 }

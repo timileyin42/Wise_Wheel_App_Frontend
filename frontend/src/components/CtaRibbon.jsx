@@ -1,7 +1,14 @@
 import { Box, Typography, Button } from '@mui/material';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function CtaRibbon() {
+  const navigate = useNavigate();
+
+  const handleBookNow = () => {
+    navigate('/book');
+  };
+
   return (
     <Box sx={{
       py: 8,
@@ -19,6 +26,7 @@ export default function CtaRibbon() {
         <Button
           variant="contained"
           size="large"
+          onClick={handleBookNow}
           sx={{
             bgcolor: 'white',
             color: 'primary.main',

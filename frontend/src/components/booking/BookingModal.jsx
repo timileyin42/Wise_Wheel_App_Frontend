@@ -14,15 +14,25 @@ import {
   StepLabel,
   Paper,
   Chip,
-  CircularProgress
+  CircularProgress,
+  Avatar,
+  Grid,
+  Card,
+  CardContent,
+  Fade,
+  Backdrop
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { addDays, isBefore } from 'date-fns';
 import CloseIcon from '@mui/icons-material/Close';
 import PaymentIcon from '@mui/icons-material/Payment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { createBooking, checkCarAvailable } from '../../services/bookings';
 import { initializePayment } from '../../services/payment';
 
@@ -31,13 +41,15 @@ const modalStyle = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: { xs: '95%', sm: '80%', md: '700px' },
+  width: { xs: '95%', sm: '90%', md: '800px', lg: '900px' },
   bgcolor: 'background.paper',
-  boxShadow: 24,
-  borderRadius: 2,
-  p: 4,
-  maxHeight: '90vh',
-  overflowY: 'auto'
+  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+  borderRadius: 3,
+  p: 0,
+  maxHeight: '95vh',
+  overflowY: 'auto',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%)',
+  backdropFilter: 'blur(10px)'
 };
 
 const steps = ['Select Dates', 'Payment', 'Confirmation'];
@@ -117,6 +129,8 @@ export default function BookingModal({ open, onClose, car }) {
   const handleInitializePayment = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const bookingData = {
         car_id: car.id,
         start_date: startDate.toISOString(),
@@ -128,14 +142,24 @@ export default function BookingModal({ open, onClose, car }) {
       const createdBooking = await createBooking(bookingData);
       setBooking(createdBooking);
       
-      // Then initialize payment
-      const paymentResponse = await initializePayment(createdBooking.id);
-      setPaymentUrl(paymentResponse.data.authorization_url);
-      setPaymentInitialized(true);
-      
-      setActiveStep(2); // Move to confirmation step
+      // Then initialize payment and redirect to payment gateway
+      try {
+        const paymentResponse = await initializePayment(createdBooking.id);
+        setPaymentUrl(paymentResponse.authorization_url);
+        setPaymentInitialized(true);
+        
+        // Redirect to payment gateway immediately
+        window.open(paymentResponse.authorization_url, '_blank');
+        
+        setActiveStep(2); // Move to confirmation step
+      } catch (paymentErr) {
+        console.error('Payment initialization failed:', paymentErr);
+        setError('Booking created but payment initialization failed. Please contact support.');
+        setActiveStep(2); // Still move to confirmation step
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Payment initialization failed');
+      console.error('Booking creation failed:', err);
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Booking creation failed');
     } finally {
       setLoading(false);
     }
@@ -146,198 +170,402 @@ export default function BookingModal({ open, onClose, car }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box sx={modalStyle}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5">
-            Book {car?.make} {car?.model}
-          </Typography>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
-        <Divider sx={{ my: 2 }} />
-
-        {activeStep === 0 && (
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Stack spacing={3}>
-              <DatePicker
-                label="Start Date"
-                value={startDate}
-                onChange={handleStartDateChange}
-                minDate={new Date()}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
-
-              <DatePicker
-                label="End Date"
-                value={endDate}
-                onChange={handleEndDateChange}
-                minDate={startDate ? addDays(startDate, 1) : new Date()}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-                disabled={!startDate}
-              />
-
-              <Paper elevation={0} sx={{ p: 3, bgcolor: 'grey.50' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="h6" gutterBottom>
-                    Rental Summary
+    <Modal 
+      open={open} 
+      onClose={onClose}
+      closeAfterTransition
+      BackdropComponent={Backdrop}
+      BackdropProps={{
+        timeout: 500,
+        sx: { backgroundColor: 'rgba(0, 0, 0, 0.7)' }
+      }}
+    >
+      <Fade in={open}>
+        <Box sx={modalStyle}>
+          {/* Header with Car Info */}
+          <Box sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            p: 3,
+            borderRadius: '12px 12px 0 0'
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 50, height: 50 }}>
+                  <DirectionsCarIcon sx={{ fontSize: 30 }} />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {car?.make} {car?.model}
                   </Typography>
-                  {startDate && endDate && (
-                    <Chip
-                      icon={<EventAvailableIcon />}
-                      label={checkingAvailability ? 'Checking...' : isAvailable ? 'Available' : 'Unavailable'}
-                      color={isAvailable ? 'success' : 'error'}
-                      size="small"
-                    />
-                  )}
-                </Stack>
-                <Typography>Daily Rate: ${car?.daily_rate}</Typography>
-                <Typography>
-                  Rental Period: {startDate?.toLocaleDateString()} - {endDate?.toLocaleDateString()}
-                </Typography>
-                <Typography>
-                  Total Days: {startDate && endDate ? 
-                    Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) : 0}
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6">
-                  Total: ${calculateTotal().toFixed(2)}
-                </Typography>
-              </Paper>
-
-              {checkingAvailability && (
-                <Alert severity="info">Checking availability...</Alert>
-              )}
-              {error && <Alert severity="error">{error}</Alert>}
-            </Stack>
-          </LocalizationProvider>
-        )}
-
-        {activeStep === 1 && (
-          <Stack spacing={3}>
-            <Typography variant="h6">Payment Information</Typography>
-            {paymentInitialized ? (
-              <Box textAlign="center">
-                <Typography gutterBottom>
-                  Redirecting to payment gateway...
-                </Typography>
-                <CircularProgress />
-                <Box mt={2}>
-                  <Button 
-                    variant="contained"
-                    onClick={() => window.open(paymentUrl, '_blank')}
-                  >
-                    Click here if not redirected automatically
-                  </Button>
+                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                    {car?.year} • ${car?.daily_rate}/day
+                  </Typography>
                 </Box>
-                <script dangerouslySetInnerHTML={{
-                  __html: `window.location.href = "${paymentUrl}";`
-                }} />
               </Box>
-            ) : (
-              <>
-                <TextField 
-                  label="Card Number" 
-                  fullWidth 
-                  placeholder="4242 4242 4242 4242" 
-                />
-                <Stack direction="row" spacing={2}>
-                  <TextField 
-                    label="Expiry Date" 
-                    fullWidth 
-                    placeholder="MM/YY" 
-                  />
-                  <TextField 
-                    label="CVV" 
-                    fullWidth 
-                    placeholder="123" 
-                  />
-                </Stack>
-                <Paper elevation={0} sx={{ p: 3, bgcolor: 'grey.50' }}>
-                  <Typography variant="h6" gutterBottom>
-                    Payment Summary
-                  </Typography>
-                  <Typography>
-                    {startDate?.toLocaleDateString()} - {endDate?.toLocaleDateString()}
-                  </Typography>
-                  <Typography>
-                    Total: ${calculateTotal().toFixed(2)}
-                  </Typography>
-                </Paper>
-                {error && <Alert severity="error">{error}</Alert>}
-              </>
-            )}
-          </Stack>
-        )}
-
-        {activeStep === 2 && (
-          <Box textAlign="center">
-            <CheckCircleIcon color="success" sx={{ fontSize: 80, mb: 2 }} />
-            <Typography variant="h5" gutterBottom>
-              {paymentInitialized ? 'Payment Initialized!' : 'Booking Confirmed!'}
-            </Typography>
-            <Typography sx={{ mb: 2 }}>
-              {paymentInitialized 
-                ? 'Please complete your payment to confirm your booking'
-                : `Your reservation for ${car.make} ${car.model} is confirmed.`}
-            </Typography>
-            {booking?.id && (
-              <Typography color="text.secondary" sx={{ mb: 3 }}>
-                Booking ID: {booking.id}
-              </Typography>
-            )}
-            {paymentInitialized && (
-              <Button 
-                variant="contained"
-                onClick={() => window.open(paymentUrl, '_blank')}
-                sx={{ mb: 2 }}
+              <IconButton 
+                onClick={onClose}
+                sx={{ 
+                  color: 'white', 
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+                }}
               >
-                Complete Payment
-              </Button>
-            )}
-            <Button variant="outlined" onClick={onClose}>
-              Close
-            </Button>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            
+            <Stepper 
+              activeStep={activeStep} 
+              sx={{ 
+                '& .MuiStepLabel-label': { color: 'rgba(255,255,255,0.8)' },
+                '& .MuiStepLabel-label.Mui-active': { color: 'white', fontWeight: 'bold' },
+                '& .MuiStepIcon-root': { color: 'rgba(255,255,255,0.3)' },
+                '& .MuiStepIcon-root.Mui-active': { color: 'white' },
+                '& .MuiStepIcon-root.Mui-completed': { color: 'rgba(255,255,255,0.8)' }
+              }}
+            >
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
           </Box>
-        )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          {activeStep !== 0 && activeStep !== 2 && (
-            <Button onClick={handleBack} sx={{ mr: 2 }}>
-              Back
-            </Button>
-          )}
-          {activeStep === 1 && !paymentInitialized && (
-            <Button
-              variant="contained"
-              onClick={handleInitializePayment}
-              disabled={loading || !isAvailable}
-              endIcon={<PaymentIcon />}
-            >
-              {loading ? 'Processing...' : 'Pay & Confirm'}
-            </Button>
-          )}
-          {activeStep === 0 && (
-            <Button
-              variant="contained"
-              onClick={() => setActiveStep(1)}
-              disabled={!isAvailable || checkingAvailability}
-            >
-              Continue
-            </Button>
-          )}
+          {/* Content */}
+          <Box sx={{ p: 4 }}>
+            {activeStep === 0 && (
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <Grid container spacing={4}>
+                  <Grid item xs={12} md={7}>
+                    <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
+                      Select Your Rental Dates
+                    </Typography>
+                    <Stack spacing={3}>
+                      <DatePicker
+                        label="Pickup Date"
+                        value={startDate}
+                        onChange={handleStartDateChange}
+                        minDate={new Date()}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            fullWidth 
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2
+                              }
+                            }}
+                          />
+                        )}
+                      />
+
+                      <DatePicker
+                        label="Return Date"
+                        value={endDate}
+                        onChange={handleEndDateChange}
+                        minDate={startDate ? addDays(startDate, 1) : new Date()}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            fullWidth 
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2
+                              }
+                            }}
+                          />
+                        )}
+                        disabled={!startDate}
+                      />
+
+                      {checkingAvailability && (
+                        <Alert 
+                          severity="info" 
+                          sx={{ borderRadius: 2 }}
+                          icon={<CircularProgress size={20} />}
+                        >
+                          Checking availability...
+                        </Alert>
+                      )}
+                      {error && (
+                        <Alert severity="error" sx={{ borderRadius: 2 }}>
+                          {error}
+                        </Alert>
+                      )}
+                    </Stack>
+                  </Grid>
+                  
+                  <Grid item xs={12} md={5}>
+                    <Card elevation={3} sx={{ borderRadius: 2 }}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                          Booking Summary
+                        </Typography>
+                        
+                        {startDate && endDate && (
+                          <Box sx={{ mb: 2 }}>
+                            <Chip
+                              icon={<EventAvailableIcon />}
+                              label={checkingAvailability ? 'Checking...' : isAvailable ? 'Available' : 'Unavailable'}
+                              color={isAvailable ? 'success' : 'error'}
+                              sx={{ mb: 2 }}
+                            />
+                          </Box>
+                        )}
+                        
+                        <Stack spacing={2}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography color="text.secondary">Daily Rate:</Typography>
+                            <Typography fontWeight="medium">${car?.daily_rate}</Typography>
+                          </Box>
+                          
+                          {startDate && endDate && (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography color="text.secondary">Rental Period:</Typography>
+                                <Typography fontWeight="medium">
+                                  {Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))} days
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography color="text.secondary">Pickup:</Typography>
+                                <Typography fontWeight="medium">
+                                  {startDate?.toLocaleDateString()}
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography color="text.secondary">Return:</Typography>
+                                <Typography fontWeight="medium">
+                                  {endDate?.toLocaleDateString()}
+                                </Typography>
+                              </Box>
+                            </>
+                          )}
+                          
+                          <Divider />
+                          
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="h6" fontWeight="bold">Total:</Typography>
+                            <Typography variant="h6" fontWeight="bold" color="primary.main">
+                              ${calculateTotal().toFixed(2)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </LocalizationProvider>
+            )}
+
+            {activeStep === 1 && (
+              <Stack spacing={3}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  Payment Information
+                </Typography>
+                {paymentInitialized ? (
+                  <Card elevation={3} sx={{ textAlign: 'center', p: 4, borderRadius: 2 }}>
+                    <CircularProgress sx={{ mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>
+                      Redirecting to Payment Gateway
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 3 }}>
+                      Please wait while we redirect you to complete your payment...
+                    </Typography>
+                    <Button 
+                      variant="contained"
+                      onClick={() => window.open(paymentUrl, '_blank')}
+                      startIcon={<PaymentIcon />}
+                    >
+                      Open Payment Page
+                    </Button>
+                  </Card>
+                ) : (
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={7}>
+                      <Stack spacing={3}>
+                        <TextField 
+                          label="Card Number" 
+                          fullWidth 
+                          placeholder="1234 5678 9012 3456"
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        />
+                        <Grid container spacing={2}>
+                          <Grid item xs={6}>
+                            <TextField 
+                              label="Expiry Date" 
+                              fullWidth 
+                              placeholder="MM/YY"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            />
+                          </Grid>
+                          <Grid item xs={6}>
+                            <TextField 
+                              label="CVV" 
+                              fullWidth 
+                              placeholder="123"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            />
+                          </Grid>
+                        </Grid>
+                        <TextField 
+                          label="Cardholder Name" 
+                          fullWidth 
+                          placeholder="John Doe"
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        />
+                      </Stack>
+                    </Grid>
+                    
+                    <Grid item xs={12} md={5}>
+                      <Card elevation={3} sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                            Payment Summary
+                          </Typography>
+                          <Stack spacing={2}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography color="text.secondary">Vehicle:</Typography>
+                              <Typography fontWeight="medium">
+                                {car?.make} {car?.model}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography color="text.secondary">Period:</Typography>
+                              <Typography fontWeight="medium">
+                                {startDate?.toLocaleDateString()} - {endDate?.toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography color="text.secondary">Duration:</Typography>
+                              <Typography fontWeight="medium">
+                                {startDate && endDate ? 
+                                  Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) : 0} days
+                              </Typography>
+                            </Box>
+                            <Divider />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="h6" fontWeight="bold">Total Amount:</Typography>
+                              <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                ${calculateTotal().toFixed(2)}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                )}
+                {error && (
+                  <Alert severity="error" sx={{ borderRadius: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+              </Stack>
+            )}
+
+            {activeStep === 2 && (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <CheckCircleIcon 
+                  color="success" 
+                  sx={{ fontSize: 100, mb: 3 }} 
+                />
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Booking Created!
+                </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                  {paymentInitialized 
+                    ? 'Your booking has been created and a payment window has opened. Please complete your payment to confirm your reservation.'
+                    : 'Your booking has been created. Please contact support to complete payment and confirm your reservation.'}
+                </Typography>
+                
+                {error && (
+                  <Alert severity="warning" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                    {error}
+                  </Alert>
+                )}
+                
+                {booking?.id && (
+                  <Card elevation={2} sx={{ mb: 3, maxWidth: 400, mx: 'auto', borderRadius: 2 }}>
+                    <CardContent>
+                      <Typography variant="body1" fontWeight="bold" gutterBottom>
+                        Booking Reference
+                      </Typography>
+                      <Typography variant="h6" color="primary.main" fontWeight="bold">
+                        #{booking.id}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                <Stack direction="row" spacing={2} justifyContent="center">
+                  {paymentInitialized && (
+                    <Button 
+                      variant="contained"
+                      size="large"
+                      onClick={() => window.open(paymentUrl, '_blank')}
+                      startIcon={<PaymentIcon />}
+                    >
+                      Open Payment Gateway
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outlined" 
+                    size="large"
+                    onClick={onClose}
+                  >
+                    Close
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+
+            {/* Action Buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Box>
+                {activeStep > 0 && activeStep !== 2 && (
+                  <Button 
+                    onClick={handleBack}
+                    size="large"
+                  >
+                    Back
+                  </Button>
+                )}
+              </Box>
+              
+              <Box>
+                {activeStep === 0 && (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => setActiveStep(1)}
+                    disabled={!isAvailable || checkingAvailability || !startDate || !endDate}
+                    sx={{ minWidth: 140 }}
+                  >
+                    Continue to Payment
+                  </Button>
+                )}
+                {activeStep === 1 && !paymentInitialized && (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleInitializePayment}
+                    disabled={loading || !isAvailable}
+                    endIcon={loading ? <CircularProgress size={20} /> : <PaymentIcon />}
+                    sx={{ minWidth: 140 }}
+                  >
+                    {loading ? 'Processing...' : 'Pay & Confirm'}
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Box>
         </Box>
-      </Box>
+      </Fade>
     </Modal>
   );
 }

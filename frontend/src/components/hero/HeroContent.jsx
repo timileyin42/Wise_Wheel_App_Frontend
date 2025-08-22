@@ -1,5 +1,6 @@
 import { Typography, Button, Stack, Box, useTheme, useMediaQuery } from '@mui/material';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 export default function HeroContent() {
   const theme = useTheme();
@@ -98,6 +99,8 @@ export default function HeroContent() {
         whileHover={{ scale: isMobile ? 1.02 : 1.05 }}
       >
         <Button
+          component={Link}
+          to="/cars"
           variant="contained"
           size={isMobile ? "medium" : "large"}
           sx={{

@@ -7,20 +7,38 @@ import '@fontsource/roboto/500.css' // Medium weight
 import '@fontsource/roboto/700.css' // Bold weight
 import '@fontsource/montserrat/700.css' // Bold headings only
 import { ThemeProvider } from '@mui/material/styles'
+import { PreferencesProvider, usePreferences } from './context/PreferencesContext'
 import CssBaseline from '@mui/material/CssBaseline'
-import theme from './assets/styles/theme'
+import { getDynamicTheme } from './theme/dynamicTheme'
 import './assets/styles/leaflet.css';
 
 // Add to window for easy console testing
-import { testBackendConnection } from './utils/testConnection';
+import { testBackendConnection, testLoginEndpoint } from './utils/testConnection';
 
 
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+
+function ThemedApp() {
+  const { preferences } = usePreferences();
+  let mode = preferences.theme;
+  if (mode === 'auto') {
+    // Use system preference
+    mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  const theme = getDynamicTheme(mode);
+  return (
     <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* Normalize CSS */}
+      <CssBaseline />
       <App />
     </ThemeProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <PreferencesProvider>
+    <ThemedApp />
+  </PreferencesProvider>
 )
 
 window.testConnection = testBackendConnection;
+window.testLoginEndpoint = testLoginEndpoint;

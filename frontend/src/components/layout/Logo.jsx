@@ -1,16 +1,18 @@
 import { Box, Typography } from '@mui/material';
+import { DirectionsCar } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
 export default function Logo() {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      {/* Car icon from MUI */}
-      <motion.div 
-        animate={{ x: [-5, 5, -5] }} 
+      {/* Use logo image instead of icon */}
+      <motion.img 
+        src="/logo2.png"
+        alt="WiseWheel Logo"
+        style={{ height: 40, marginRight: 8 }}
+        animate={{ x: [-2, 2, -2] }} 
         transition={{ duration: 3, repeat: Infinity }}
-      >
-        <CarIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-      </motion.div>
+      />
       
       <Typography variant="h6" sx={{ 
         ml: 1,

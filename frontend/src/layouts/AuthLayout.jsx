@@ -1,9 +1,10 @@
 // src/layouts/AuthLayout.jsx
 import { Box, Container, CssBaseline } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
+import { Outlet } from 'react-router-dom';
 import theme from '../theme';
 
-export default function AuthLayout({ children }) {
+export default function AuthLayout() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -35,11 +36,11 @@ export default function AuthLayout({ children }) {
             }}
           >
             <img
-              src="/assets/logo.png"
-              alt="Company Logo"
+              src="/logo1.png"
+              alt="WiseWheel Logo"
               style={{ height: 60, marginBottom: 20 }}
             />
-            {children}
+            <Outlet />
           </Box>
         </Container>
       </Box>

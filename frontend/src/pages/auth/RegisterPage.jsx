@@ -1,6 +1,5 @@
-import { Container, Typography, Link } from '@mui/material';
+import { Box, Typography, Link } from '@mui/material';
 import AuthForm from '../../components/auth/AuthForm';
-import AuthLayout from '../../layouts/AuthLayout';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -24,27 +23,32 @@ export default function RegisterPage() {
     }
   };
 
-
   return (
-    <AuthLayout backgroundImage="/images/auth-bg.jpg">
-      <Container maxWidth="sm">
-        <Typography variant="h3" gutterBottom sx={{ 
-          color: 'white',
-          textAlign: 'center',
-          mb: 4
-        }}>
-          Create Account
-        </Typography>
-        
-        <AuthForm 
-          type="register" 
-          onSubmit={handleSubmit}
-        />
-        
-        <Typography sx={{ mt: 3, textAlign: 'center', color: 'white' }}>
-          Already have an account? <Link href="/login" color="secondary">Login</Link>
-        </Typography>
-      </Container>
-    </AuthLayout>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      width: '100%'
+    }}>
+      <Typography variant="h3" gutterBottom sx={{ 
+        textAlign: 'center',
+        mb: 4,
+        background: 'linear-gradient(45deg, #1976d2 30%, #2196f3 90%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent'
+      }}>
+        Create Account
+      </Typography>
+      
+      <AuthForm 
+        type="register" 
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
+      
+      <Typography sx={{ mt: 3, textAlign: 'center' }}>
+        Already have an account? <Link href="/login" color="primary">Login</Link>
+      </Typography>
+    </Box>
   );
 }
